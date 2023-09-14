@@ -607,7 +607,7 @@ class PDBData(Data):
             for line in tqdm.tqdm(f, desc=desc):
                 label, recfile, ligfile = line.split()
 
-                self.ids.append(os.path.dirname(recfile))
+                self.ids.append(os.path.basename(os.path.splitext(ligfile)[0]))
 
                 self.labels.append(float(label))
 
@@ -641,7 +641,7 @@ class PDBData(Data):
         self.labels = np.array(self.labels, dtype=np.float32)
         self.n = len(self.labels)
 
-        self.ids = np.array(self.ids, dtype="U4")
+        self.ids = np.array(self.ids, dtype="U")
 
         self.species_are_indices = False
 
