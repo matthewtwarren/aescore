@@ -68,7 +68,7 @@ def predict(model, AEVC, loader, scaler=None, baseline=None, device=None):
                 ligmasks = species_coordinates_ligmasks[2].to(device)
 
             # Compute AEV
-            aevs = AEVC.forward((species, coordinates)).aevs
+            aevs = AEVC.forward((species, coordinates), ligmask=ligmasks).aevs
 
             # Forward pass
             output = model(species, aevs, ligmasks)

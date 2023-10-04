@@ -92,9 +92,9 @@ def train(
             if len(species_coordinates_ligmasks) == 2:
                 ligmasks = None
             else:
-                ligmasks = species_coordinates_ligmasks[2].to(device)
-
-            aevs = AEVC.forward((species, coordinates)).aevs
+                ligmasks = species_coordinates_ligmasks[2].to(device)    
+            
+            aevs = AEVC.forward((species, coordinates), ligmask=ligmasks).aevs
 
             optimizer.zero_grad()
 
@@ -129,8 +129,8 @@ def train(
                     else:
                         ligmasks = species_coordinates_ligmasks[2].to(device)
 
-                    aevs = AEVC.forward((species, coordinates)).aevs
-
+                    aevs = AEVC.forward((species, coordinates), ligmask=ligmasks).aevs
+                    
                     # Forward pass
                     output = model(species, aevs, ligmasks)
 
