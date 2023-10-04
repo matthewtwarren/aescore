@@ -47,6 +47,12 @@ def trainparser(default="BP"):
         action="store_true",
         help="Use contributions from ligand atoms only",
     )
+    
+    parser.add_argument(
+        "--intermolecular", 
+        action="store_true", 
+        help="Use intermolecular (protein-ligand) interactions only",
+    )
 
     # Radial
     parser.add_argument("-RcR", type=float, default=5.2, help="Radial cutoff")
@@ -185,6 +191,12 @@ def predictparser():
         "--ligmask",
         action="store_true",
         help="Use contributions from ligand atoms only",
+    )
+
+    parser.add_argument(
+        "--intermolecular", 
+        action="store_true", 
+        help="Use intermolecular (protein-ligand) interactions only",
     )
 
     parser.add_argument("-b", "--batchsize", type=int, default=64, help="Batch size")

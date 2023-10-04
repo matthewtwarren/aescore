@@ -9,7 +9,7 @@ import torch
 from ael import plot
 
 
-def predict(model, AEVC, loader, scaler=None, baseline=None, device=None):
+def predict(model, AEVC, loader, scaler=None, baseline=None, device=None, intermolecular_only=False):
     """
     Binding affinity predictions.
 
@@ -132,6 +132,7 @@ def evaluate(
     scaler=None,
     baseline=None,
     plt: bool = True,
+    intermolecular_only: bool = False,
 ) -> None:
     """
     Evaluate model performance on a given dataset.

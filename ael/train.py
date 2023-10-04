@@ -20,6 +20,7 @@ def train(
     savepath: Optional[str] = None,
     idx: Optional[int] = None,
     device=None,
+    intermolecular_only: bool = False,
 ) -> Tuple[List[float], List[float]]:
     """
     Train model.
@@ -403,6 +404,7 @@ if __name__ == "__main__":
                 epochs=args.epochs,
                 savepath=args.outpath,
                 idx=None if args.consensus == 1 else idx,
+                intermolecular_only=args.intermolecular,
             )
 
             # Save training and validation losses
@@ -470,6 +472,7 @@ if __name__ == "__main__":
             baseline=bl,
             stage="train",
             plt=args.plot,
+            intermolecular_only=args.intermolecular,
         )
         predict.evaluate(
             best_models,
@@ -480,6 +483,7 @@ if __name__ == "__main__":
             baseline=bl,
             stage="valid",
             plt=args.plot,
+            intermolecular_only=args.intermolecular,
         )
 
         if args.testfile is not None:
@@ -492,4 +496,5 @@ if __name__ == "__main__":
                 baseline=bl,
                 stage="test",
                 plt=args.plot,
+                intermolecular_only=args.intermolecular,
             )
