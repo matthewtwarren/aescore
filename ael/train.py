@@ -8,7 +8,6 @@ import tqdm
 
 from ael import utils
 
-
 def train(
     model,
     optimizer,
@@ -20,6 +19,7 @@ def train(
     savepath: Optional[str] = None,
     idx: Optional[int] = None,
     device=None,
+    use_ligmasks: bool = False,
     intermolecular_only: bool = False,
 ) -> Tuple[List[float], List[float]]:
     """
@@ -93,13 +93,13 @@ def train(
             if len(species_coordinates_ligmasks) == 2:
                 ligmasks = None
             else:
-                ligmasks = species_coordinates_ligmasks[2].to(device)    
+                ligmasks = species_coordinates_ligmasks[2].to(device)
             
-            aevs = AEVC.forward((species, coordinates), ligmask=ligmasks).aevs
+            aevs = AEVC.forward((species, coordinates), ligmasks if intermolecular_only else None).aevs
 
             optimizer.zero_grad()
-
-            output = model(species, aevs, ligmasks)
+            
+            output = model(species, aevs, ligmasks if use_ligmasks else None)
 
             loss = loss_function(output, labels)
 
@@ -130,10 +130,10 @@ def train(
                     else:
                         ligmasks = species_coordinates_ligmasks[2].to(device)
 
-                    aevs = AEVC.forward((species, coordinates), ligmask=ligmasks).aevs
+                    aevs = AEVC.forward((species, coordinates), ligmasks if intermolecular_only else None).aevs
                     
                     # Forward pass
-                    output = model(species, aevs, ligmasks)
+                    output = model(species, aevs, ligmasks if use_ligmasks else None)
 
                     valid_loss += loss_function(output, labels).item()
 
@@ -236,7 +236,7 @@ if __name__ == "__main__":
                 cmap,
                 desc="Training set",
                 removeHs=args.removeHs,
-                ligmask=args.ligmask,
+                ligmask=args.ligmask or args.intermolecular,
             )
             validdata: Union[loaders.PDBData, loaders.VSData] = loaders.PDBData(
                 args.validfile,
@@ -245,7 +245,7 @@ if __name__ == "__main__":
                 cmap,
                 desc="Validation set",
                 removeHs=args.removeHs,
-                ligmask=args.ligmask,
+                ligmask=args.ligmask  or args.intermolecular,
             )
         else:
             traindata = loaders.VSData(
@@ -283,7 +283,7 @@ if __name__ == "__main__":
                     cmap,
                     desc="Test set",
                     removeHs=args.removeHs,
-                    ligmask=args.ligmask,
+                    ligmask=args.ligmask or args.intermolecular,
                 )
             else:
                 testdata = loaders.VSData(
@@ -404,6 +404,7 @@ if __name__ == "__main__":
                 epochs=args.epochs,
                 savepath=args.outpath,
                 idx=None if args.consensus == 1 else idx,
+                use_ligmasks=args.ligmask,
                 intermolecular_only=args.intermolecular,
             )
 
@@ -472,6 +473,7 @@ if __name__ == "__main__":
             baseline=bl,
             stage="train",
             plt=args.plot,
+            use_ligmasks=args.ligmask,
             intermolecular_only=args.intermolecular,
         )
         predict.evaluate(
@@ -483,6 +485,7 @@ if __name__ == "__main__":
             baseline=bl,
             stage="valid",
             plt=args.plot,
+            use_ligmasks=args.ligmask,
             intermolecular_only=args.intermolecular,
         )
 
@@ -496,5 +499,6 @@ if __name__ == "__main__":
                 baseline=bl,
                 stage="test",
                 plt=args.plot,
+                use_ligmasks=args.ligmask,
                 intermolecular_only=args.intermolecular,
             )

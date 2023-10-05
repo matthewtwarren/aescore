@@ -9,7 +9,7 @@ import torch
 from ael import plot
 
 
-def predict(model, AEVC, loader, scaler=None, baseline=None, device=None, intermolecular_only=False):
+def predict(model, AEVC, loader, scaler=None, baseline=None, device=None, use_ligmasks=False, intermolecular_only=False):
     """
     Binding affinity predictions.
 
@@ -68,10 +68,10 @@ def predict(model, AEVC, loader, scaler=None, baseline=None, device=None, interm
                 ligmasks = species_coordinates_ligmasks[2].to(device)
 
             # Compute AEV
-            aevs = AEVC.forward((species, coordinates), ligmask=ligmasks).aevs
+            aevs = AEVC.forward((species, coordinates), ligmasks if intermolecular_only else None).aevs
 
             # Forward pass
-            output = model(species, aevs, ligmasks)
+            output = model(species, aevs, ligmasks if use_ligmasks else None)
 
             output = output.cpu().numpy()
             labels = labels.cpu().numpy()
@@ -132,6 +132,7 @@ def evaluate(
     scaler=None,
     baseline=None,
     plt: bool = True,
+    use_ligmasks: bool = False,
     intermolecular_only: bool = False,
 ) -> None:
     """
@@ -160,7 +161,7 @@ def evaluate(
     results = {}
 
     for idx, model in enumerate(models):
-        ids, true, predicted = predict(model, AEVC, loader, scaler, baseline)
+        ids, true, predicted = predict(model, AEVC, loader, scaler, baseline, use_ligmasks=use_ligmasks, intermolecular_only=intermolecular_only)
 
         # Store results
         if idx == 0:
@@ -233,7 +234,7 @@ if __name__ == "__main__":
                 cmap,
                 desc="",
                 removeHs=args.removeHs,
-                ligmask=args.ligmask,
+                ligmask=args.ligmask or args.intermolecular,
             )
         else:
             testdata = loaders.VSData(
