@@ -61,6 +61,19 @@ def _universe_from_openbabel(obmol):
 
     return u
 
+def _complete_records(u, n_atoms, n_residues):
+
+    u.add_TopologyAttr("resnames", ["LIG"] * n_residues)
+    u.add_TopologyAttr("record_types", ["HETATM"] * n_atoms)
+    u.add_TopologyAttr("segid", [""] * n_residues)
+    u.add_TopologyAttr("resnum", [1] * n_residues)
+    u.add_TopologyAttr("resid", [1] * n_residues)
+    u.add_TopologyAttr("resname", ["LIG"] * n_residues)
+    u.add_TopologyAttr("record_types", ["HETATM"] * n_atoms)
+    u.add_TopologyAttr("segid", [""] * n_residues)
+
+    return u
+
 
 def load_mols(
     ligand: str, receptor: str, datapaths: Union[str, List[str]]
@@ -93,12 +106,12 @@ def load_mols(
     The folders containing ligand and receptor files data are defined by
     :code:`datapaths`.
     """
-
-    ext = os.path.splitext(ligand)[-1].lower()[1:]
-
-    # Assumes receptor is a PDB file
+    # Assumes receptor is a PDB or PQR file
     # TODO: relax this assumption
-    assert os.path.splitext(receptor)[-1].lower() == ".pdb"
+    recext = os.path.splitext(receptor)[-1].lower()
+    assert recext == ".pdb" or recext == ".pqr"
+
+    ligext = os.path.splitext(ligand)[-1].lower()[1:]
 
     # Ensure list
     if isinstance(datapaths, str):
@@ -111,11 +124,24 @@ def load_mols(
         # Try to load ligand
         for path in datapaths:
             ligfile = os.path.join(path, ligand)
-            if os.path.isfile(ligfile):
+            print
+            if os.path.isfile(ligfile) and ligext == "mol2":
+                try:
+                    ulig = mda.Universe(ligfile)
+                    ulig = _complete_records(ulig, len(ulig.atoms), len(ulig.residues))
+                    uligs = [ulig]
+
+                except Exception:
+                    print(f"Problems loading {ligfile}")
+                    raise
+                
+                # Ligand file found in current path, no need to search further
+                break
+            elif os.path.isfile(ligfile):
                 try:
                     uligs = [
                         _universe_from_openbabel(obmol)
-                        for obmol in pybel.readfile(ext, ligfile)
+                        for obmol in pybel.readfile(ligext, ligfile)
                     ]
                 except Exception:
                     print(f"Problems loading {ligfile}")
@@ -154,7 +180,7 @@ def load_mols(
 
 
 def select(
-    system: mda.Universe, distance: float, removeHs: bool = False, ligmask: bool = False
+    system: mda.Universe, distance: float, removeHs: bool = False, ligmask: bool = False, charges: bool = False
 ) -> Union[Tuple[np.ndarray, np.ndarray], Tuple[np.ndarray, np.ndarray, np.ndarray]]:
     """
     Select binding site.
@@ -184,6 +210,11 @@ def select(
     If :code:`ligmask==True`, this function also returns a mask for the ligand. This
     is useful to propagate only atomic environments from the ligand trough the network.
     """
+    # Add element attribute
+    elements = np.array([mda.topology.guessers.guess_atom_element(atom.name) 
+                         for atom in system.atoms], dtype=object)
+    system.add_TopologyAttr('element', elements)
+
     resselection = system.select_atoms(
         f"(byres (around {distance} (resname LIG))) or (resname LIG)"
     )
@@ -195,17 +226,47 @@ def select(
     if removeHs:
         mask = resselection.elements != "H"
         # Elements from PDB file needs MDAnalysis@develop (see #2648)
-        if ligmask:
+        if ligmask and charges:
+            return (
+                resselection.elements[mask],
+                resselection.positions[mask],
+                lmask[mask],
+                resselection.charges[mask],
+            )
+        elif ligmask:
             return (
                 resselection.elements[mask],
                 resselection.positions[mask],
                 lmask[mask],
             )
+        elif charges:
+            return (
+                resselection.elements[mask],
+                resselection.positions[mask],
+                resselection.charges[mask],
+            )
         else:
             return resselection.elements[mask], resselection.positions[mask]
     else:
-        if ligmask:
-            return resselection.elements, resselection.positions, lmask
+        if ligmask and charges:
+            return (
+                resselection.elements, 
+                resselection.positions, 
+                lmask, 
+                resselection.charges
+            )
+        elif ligmask:
+            return (
+                resselection.elements, 
+                resselection.positions, 
+                lmask
+            )
+        elif charges:
+            return (
+                resselection.elements, 
+                resselection.positions, 
+                resselection.charges
+            )      
         else:
             return resselection.elements, resselection.positions
 
