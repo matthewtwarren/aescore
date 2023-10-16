@@ -61,6 +61,7 @@ def _universe_from_openbabel(obmol):
 
     return u
 
+
 def _complete_records(u, n_atoms, n_residues):
 
     u.add_TopologyAttr("resnames", ["LIG"] * n_residues)
@@ -124,7 +125,7 @@ def load_mols(
         # Try to load ligand
         for path in datapaths:
             ligfile = os.path.join(path, ligand)
-            print
+
             if os.path.isfile(ligfile) and ligext == "mol2":
                 try:
                     ulig = mda.Universe(ligfile)
@@ -134,7 +135,7 @@ def load_mols(
                 except Exception:
                     print(f"Problems loading {ligfile}")
                     raise
-                
+
                 # Ligand file found in current path, no need to search further
                 break
             elif os.path.isfile(ligfile):
@@ -211,7 +212,7 @@ def select(
     is useful to propagate only atomic environments from the ligand trough the network.
     """
     # Add element attribute
-    elements = np.array([mda.topology.guessers.guess_atom_element(atom.name) 
+    elements = np.array([mda.topology.guessers.guess_atom_element(atom.name)
                          for atom in system.atoms], dtype=object)
     system.add_TopologyAttr('element', elements)
 
@@ -221,6 +222,13 @@ def select(
 
     # Mask for ligand
     lmask = resselection.resnames == "LIG"
+
+    if charges:
+        try:
+            resselection.charges
+        except:
+            raise RuntimeError(
+                "Charges were not read from the input files. They must be provided in PQR (receptor) or MOL2 (ligand) files.")
 
     # TODO: Write more concisely
     if removeHs:
@@ -250,23 +258,23 @@ def select(
     else:
         if ligmask and charges:
             return (
-                resselection.elements, 
-                resselection.positions, 
-                lmask, 
+                resselection.elements,
+                resselection.positions,
+                lmask,
                 resselection.charges
             )
         elif ligmask:
             return (
-                resselection.elements, 
-                resselection.positions, 
+                resselection.elements,
+                resselection.positions,
                 lmask
             )
         elif charges:
             return (
-                resselection.elements, 
-                resselection.positions, 
+                resselection.elements,
+                resselection.positions,
                 resselection.charges
-            )      
+            )
         else:
             return resselection.elements, resselection.positions
 
@@ -278,6 +286,7 @@ def load_mols_and_select(
     datapaths,
     removeHs: bool = False,
     ligmask=False,
+    charges=False,
 ):
     """
     Load PDB files and select binding site.
@@ -310,7 +319,7 @@ def load_mols_and_select(
     systems = load_mols(ligand, receptor, datapaths)
 
     return [
-        select(system, distance, removeHs=removeHs, ligmask=ligmask)
+        select(system, distance, removeHs=removeHs, ligmask=ligmask, charges=charges)
         for system in systems
     ]
 
@@ -374,10 +383,12 @@ def pad_collate(
 
     ids, labels, species_and_coordinates = zip(*batch)
 
-    if len(species_and_coordinates[0]) == 2:  # No ligand mask
+    if len(species_and_coordinates[0]) == 4:
+        species, coordinates, ligmask, charges = zip(*species_and_coordinates)
+    elif len(species_and_coordinates[0]) == 3:
+        species, coordinates, ligmask_charges = zip(*species_and_coordinates)
+    elif len(species_and_coordinates[0]) == 2:
         species, coordinates = zip(*species_and_coordinates)
-    else:
-        species, coordinates, ligmask = zip(*species_and_coordinates)
 
     pad_species = nn.utils.rnn.pad_sequence(
         species, batch_first=True, padding_value=species_pad_value
@@ -386,20 +397,35 @@ def pad_collate(
         coordinates, batch_first=True, padding_value=coords_pad_value
     )
 
-    if len(species_and_coordinates[0]) == 2:  # No ligand mask
-        return np.array(ids), torch.tensor(labels), (pad_species, pad_coordinates)
-    else:
+    if len(species_and_coordinates[0]) == 4:
         pad_ligmask = nn.utils.rnn.pad_sequence(
             ligmask,
             batch_first=True,
             padding_value=False,
         )
-
+        pad_charges = nn.utils.rnn.pad_sequence(
+            charges,
+            batch_first=True,
+            padding_value=False,
+        )
+        return (
+            np.array(ids),
+            torch.tensor(labels),
+            (pad_species, pad_coordinates, pad_ligmask, pad_charges),
+        )
+    elif len(species_and_coordinates[0]) == 3:
+        pad_ligmask_charges = nn.utils.rnn.pad_sequence(
+            ligmask_charges,
+            batch_first=True,
+            padding_value=False,
+        )
         return (
             np.array(ids),
             torch.tensor(labels),
             (pad_species, pad_coordinates, pad_ligmask),
         )
+    elif len(species_and_coordinates[0]) == 2:  # No ligand mask
+        return np.array(ids), torch.tensor(labels), (pad_species, pad_coordinates)
 
 
 def anummap(*args) -> Dict[int, int]:
@@ -510,6 +536,7 @@ class Data(data.Dataset):
         self.species: List[torch.Tensor] = []
         self.coordinates: List[torch.Tensor] = []
         self.ligmasks: List[torch.Tensor] = []
+        self.charges: List[torch.Tensor] = []
         self.species_are_indices: bool = False
 
     def __len__(self) -> int:
@@ -539,17 +566,30 @@ class Data(data.Dataset):
         Tuple[str, float, Tuple[torch.Tensor, torch.Tensor]]
             Item from the dataset (PDB IDs, labels, species, coordinates)
         """
-        if len(self.ligmasks) == 0:
+        if len(self.ligmasks) == 0 and len(self.charges) == 0:
             return (
                 self.ids[idx],
                 self.labels[idx],
                 (self.species[idx], self.coordinates[idx]),
             )
-        else:
+        elif len(self.ligmasks) != 0 and len(self.charges) == 0:
             return (
                 self.ids[idx],
                 self.labels[idx],
                 (self.species[idx], self.coordinates[idx], self.ligmasks[idx]),
+            )
+        elif len(self.ligmasks) == 0 and len(self.charges) != 0:
+            return (
+                self.ids[idx],
+                self.labels[idx],
+                (self.species[idx], self.coordinates[idx], self.charges[idx]),
+            )
+        else:
+            return (
+                self.ids[idx],
+                self.labels[idx],
+                (self.species[idx], self.coordinates[idx],
+                 self.ligmasks[idx], self.charges[idx]),
             )
 
     def _chemap(self, cmap: Union[Dict[str, str], Dict[str, List[str]]]):
@@ -633,11 +673,12 @@ class PDBData(Data):
         desc: Optional[str] = None,
         removeHs: bool = False,
         ligmask: bool = False,
+        charges: bool = False,
     ):
 
         super().__init__()
 
-        self._load(fname, distance, datapaths, cmap, desc, removeHs, ligmask)
+        self._load(fname, distance, datapaths, cmap, desc, removeHs, ligmask, charges)
 
     def _load(
         self,
@@ -648,6 +689,7 @@ class PDBData(Data):
         desc: Optional[str] = None,
         removeHs: bool = False,
         ligmask: bool = False,
+        charges: bool = False,
     ) -> None:
 
         super().__init__()
@@ -679,14 +721,24 @@ class PDBData(Data):
                     datapaths,
                     removeHs=removeHs,
                     ligmask=ligmask,
+                    charges=charges
                 )
 
                 assert len(systems) == 1
-                if ligmask:
-                    els, coords, mask = systems[0]
 
-                    # Store ligand mask
+                if ligmask and charges:
+                    els, coords, mask, chrgs = systems[0]
+                    self.charges.append(torch.from_numpy(chrgs))
                     self.ligmasks.append(torch.from_numpy(mask))
+
+                elif ligmask:
+                    els, coords, mask = systems[0]
+                    self.ligmasks.append(torch.from_numpy(mask))
+
+                elif charges:
+                    els, coords, chrgs = systems[0]
+                    self.charges.append(torch.from_numpy(chrgs))
+
                 else:
                     els, coords = systems[0]
 
