@@ -54,6 +54,12 @@ def trainparser(default="BP"):
         help="Use intermolecular (protein-ligand) interactions only",
     )
 
+    parser.add_argument(
+        "--charges", 
+        action="store_true", 
+        help="Append atom charges to atomic environment vectors",
+    )
+
     # Radial
     parser.add_argument("-RcR", type=float, default=5.2, help="Radial cutoff")
     parser.add_argument("-EtaR", type=float, default=16.0, help="Radial decay")
@@ -197,6 +203,12 @@ def predictparser():
         "--intermolecular", 
         action="store_true", 
         help="Use intermolecular (protein-ligand) interactions only",
+    )
+
+    parser.add_argument(
+        "--charges", 
+        action="store_true", 
+        help="Append atom charges to atomic environment vectors",
     )
 
     parser.add_argument("-b", "--batchsize", type=int, default=64, help="Batch size")
