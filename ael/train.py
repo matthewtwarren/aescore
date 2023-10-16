@@ -5,7 +5,6 @@ import mlflow
 import numpy as np
 import torch
 import tqdm
-
 from ael import utils
 
 def train(
@@ -21,6 +20,7 @@ def train(
     device=None,
     use_ligmasks: bool = False,
     intermolecular_only: bool = False,
+    use_charges: bool = False,
 ) -> Tuple[List[float], List[float]]:
     """
     Train model.
@@ -47,6 +47,12 @@ def train(
         Inded (for multiple trainings)
     device:
         Computation device
+    use_ligmasks: bool
+        Use ligand masks
+    intermolecular_only: bool
+        Use intermolecular interactions only
+    use_charges: bool
+        Use atom charges
 
     Returns
     -------
@@ -89,12 +95,16 @@ def train(
             labels = labels.to(device)
             species = species_coordinates_ligmasks[0].to(device)
             coordinates = species_coordinates_ligmasks[1].to(device)
-
-            if len(species_coordinates_ligmasks) == 2:
-                ligmasks = None
-            else:
-                ligmasks = species_coordinates_ligmasks[2].to(device)
             
+            if use_ligmasks or intermolecular_only:
+                ligmasks = species_coordinates_ligmasks[2].to(device)
+
+                if use_charges:
+                    charges = species_coordinates_ligmasks[3].to(device)
+
+            elif use_charges:
+                charges = species_coordinates_ligmasks[2].to(device)
+                
             aevs = AEVC.forward((species, coordinates), ligmasks if intermolecular_only else None).aevs
 
             optimizer.zero_grad()
@@ -125,11 +135,15 @@ def train(
                     species = species_coordinates_ligmasks[0].to(device)
                     coordinates = species_coordinates_ligmasks[1].to(device)
 
-                    if len(species_coordinates_ligmasks) == 2:
-                        ligmasks = None
-                    else:
+                    if use_ligmasks or intermolecular_only:
                         ligmasks = species_coordinates_ligmasks[2].to(device)
 
+                        if use_charges:
+                            charges = species_coordinates_ligmasks[3].to(device)
+                    
+                    elif use_charges:
+                        charges = species_coordinates_ligmasks[2].to(device)
+                        
                     aevs = AEVC.forward((species, coordinates), ligmasks if intermolecular_only else None).aevs
                     
                     # Forward pass
@@ -237,6 +251,7 @@ if __name__ == "__main__":
                 desc="Training set",
                 removeHs=args.removeHs,
                 ligmask=args.ligmask or args.intermolecular,
+                charges=args.charges,
             )
             validdata: Union[loaders.PDBData, loaders.VSData] = loaders.PDBData(
                 args.validfile,
@@ -246,6 +261,7 @@ if __name__ == "__main__":
                 desc="Validation set",
                 removeHs=args.removeHs,
                 ligmask=args.ligmask  or args.intermolecular,
+                charges=args.charges,
             )
         else:
             traindata = loaders.VSData(
@@ -284,6 +300,7 @@ if __name__ == "__main__":
                     desc="Test set",
                     removeHs=args.removeHs,
                     ligmask=args.ligmask or args.intermolecular,
+                    charges=args.charges,
                 )
             else:
                 testdata = loaders.VSData(
@@ -406,6 +423,7 @@ if __name__ == "__main__":
                 idx=None if args.consensus == 1 else idx,
                 use_ligmasks=args.ligmask,
                 intermolecular_only=args.intermolecular,
+                use_charges=args.charges,
             )
 
             # Save training and validation losses
@@ -475,6 +493,7 @@ if __name__ == "__main__":
             plt=args.plot,
             use_ligmasks=args.ligmask,
             intermolecular_only=args.intermolecular,
+            charges=args.charges,
         )
         predict.evaluate(
             best_models,
@@ -487,6 +506,7 @@ if __name__ == "__main__":
             plt=args.plot,
             use_ligmasks=args.ligmask,
             intermolecular_only=args.intermolecular,
+            charges=args.charges,
         )
 
         if args.testfile is not None:
@@ -501,4 +521,5 @@ if __name__ == "__main__":
                 plt=args.plot,
                 use_ligmasks=args.ligmask,
                 intermolecular_only=args.intermolecular,
+                charges=args.charges,
             )
