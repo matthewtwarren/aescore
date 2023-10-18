@@ -414,7 +414,7 @@ def pad_collate(
             (pad_species, pad_coordinates, pad_ligmask, pad_charges),
         )
     elif len(species_and_coordinates[0]) == 3:
-        pad_ligmask_charges = nn.utils.rnn.pad_sequence(
+        pad_ligmask_or_charges = nn.utils.rnn.pad_sequence(
             ligmask_charges,
             batch_first=True,
             padding_value=False,
@@ -422,7 +422,7 @@ def pad_collate(
         return (
             np.array(ids),
             torch.tensor(labels),
-            (pad_species, pad_coordinates, pad_ligmask),
+            (pad_species, pad_coordinates, pad_ligmask_or_charges),
         )
     elif len(species_and_coordinates[0]) == 2:  # No ligand mask
         return np.array(ids), torch.tensor(labels), (pad_species, pad_coordinates)
