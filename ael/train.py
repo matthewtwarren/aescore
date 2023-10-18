@@ -100,12 +100,16 @@ def train(
                 ligmasks = species_coordinates_ligmasks[2].to(device)
 
                 if use_charges:
-                    charges = species_coordinates_ligmasks[3].to(device)
+                    charges = species_coordinates_ligmasks[3].to(device, dtype=torch.float32)
 
             elif use_charges:
-                charges = species_coordinates_ligmasks[2].to(device)
+                charges = species_coordinates_ligmasks[2].to(device, dtype=torch.float32)
                 
             aevs = AEVC.forward((species, coordinates), ligmasks if intermolecular_only else None).aevs
+
+            if use_charges:
+                charges = torch.unsqueeze(charges, dim=2)
+                aevs = torch.cat((aevs, charges), dim=2)
 
             optimizer.zero_grad()
             
@@ -139,12 +143,16 @@ def train(
                         ligmasks = species_coordinates_ligmasks[2].to(device)
 
                         if use_charges:
-                            charges = species_coordinates_ligmasks[3].to(device)
+                            charges = species_coordinates_ligmasks[3].to(device, dtype=torch.float32)
                     
                     elif use_charges:
-                        charges = species_coordinates_ligmasks[2].to(device)
+                        charges = species_coordinates_ligmasks[2].to(device, dtype=torch.float32)
                         
                     aevs = AEVC.forward((species, coordinates), ligmasks if intermolecular_only else None).aevs
+
+                    if use_charges:
+                        charges = torch.unsqueeze(charges, dim=2)
+                        aevs = torch.cat((aevs, charges), dim=2)
                     
                     # Forward pass
                     output = model(species, aevs, ligmasks if use_ligmasks else None)
@@ -398,7 +406,7 @@ if __name__ == "__main__":
             models_list.append(
                 models.AffinityModel(
                     n_species,
-                    AEVC.aev_length,
+                    AEVC.aev_length if not args.charges else AEVC.aev_length + 1,
                     layers_sizes=args.layers,
                     dropp=args.dropout,
                 )
@@ -493,7 +501,7 @@ if __name__ == "__main__":
             plt=args.plot,
             use_ligmasks=args.ligmask,
             intermolecular_only=args.intermolecular,
-            charges=args.charges,
+            use_charges=args.charges,
         )
         predict.evaluate(
             best_models,
@@ -506,7 +514,7 @@ if __name__ == "__main__":
             plt=args.plot,
             use_ligmasks=args.ligmask,
             intermolecular_only=args.intermolecular,
-            charges=args.charges,
+            use_charges=args.charges,
         )
 
         if args.testfile is not None:
@@ -521,5 +529,5 @@ if __name__ == "__main__":
                 plt=args.plot,
                 use_ligmasks=args.ligmask,
                 intermolecular_only=args.intermolecular,
-                charges=args.charges,
+                use_charges=args.charges,
             )

@@ -9,7 +9,7 @@ import torch
 from ael import plot
 
 
-def predict(model, AEVC, loader, scaler=None, baseline=None, device=None, use_ligmasks=False, intermolecular_only=False):
+def predict(model, AEVC, loader, scaler=None, baseline=None, device=None, use_ligmasks=False, intermolecular_only=False, use_charges=False):
     """
     Binding affinity predictions.
 
@@ -25,6 +25,12 @@ def predict(model, AEVC, loader, scaler=None, baseline=None, device=None, use_li
         Baseline for delta learning (PDB IDs, Vina, logK)
     device: torch.device
         Computation device
+    use_ligmasks: bool
+        Use ligand masks
+    intermolecular_only: bool
+        Use intermolecular interactions only
+    use_charges: bool
+        Use partial charges
 
     Returns
     -------
@@ -62,13 +68,22 @@ def predict(model, AEVC, loader, scaler=None, baseline=None, device=None, use_li
             species = species_coordinates_ligmasks[0].to(device)
             coordinates = species_coordinates_ligmasks[1].to(device)
 
-            if len(species_coordinates_ligmasks) == 2:
-                ligmasks = None
-            else:
+            if use_ligmasks or intermolecular_only:
                 ligmasks = species_coordinates_ligmasks[2].to(device)
 
+                if use_charges:
+                    charges = species_coordinates_ligmasks[3].to(device, dtype=torch.float32)
+                
+            elif use_charges:
+                charges = species_coordinates_ligmasks[2].to(device, dtype=torch.float32)
+
             # Compute AEV
-            aevs = AEVC.forward((species, coordinates), ligmasks if intermolecular_only else None).aevs
+            aevs = AEVC.forward((species, coordinates),
+                                ligmasks if intermolecular_only else None).aevs
+
+            if use_charges:
+                    charges = torch.unsqueeze(charges, dim=2)
+                    aevs = torch.cat((aevs, charges), dim=2)
 
             # Forward pass
             output = model(species, aevs, ligmasks if use_ligmasks else None)
@@ -134,6 +149,7 @@ def evaluate(
     plt: bool = True,
     use_ligmasks: bool = False,
     intermolecular_only: bool = False,
+    use_charges: bool = False,
 ) -> None:
     """
     Evaluate model performance on a given dataset.
@@ -154,6 +170,12 @@ def evaluate(
         Baseline for delta learning (PDB IDs, Vina, logK)
     plt: bool
         Plotting flag
+    use_ligmasks: bool
+        Use ligand masks
+    intermolecular_only: bool
+        Use intermolecular interactions only
+    use_charges: bool
+        Use partial charges
     """
 
     assert stage in ["train", "valid", "test", "predict"]
@@ -161,7 +183,8 @@ def evaluate(
     results = {}
 
     for idx, model in enumerate(models):
-        ids, true, predicted = predict(model, AEVC, loader, scaler, baseline, use_ligmasks=use_ligmasks, intermolecular_only=intermolecular_only)
+        ids, true, predicted = predict(model, AEVC, loader, scaler, baseline, use_ligmasks=use_ligmasks,
+                                       intermolecular_only=intermolecular_only, use_charges=use_charges)
 
         # Store results
         if idx == 0:
@@ -274,4 +297,7 @@ if __name__ == "__main__":
             stage="predict",
             baseline=None,
             plt=args.plot,
+            use_ligmasks=args.ligmask,
+            intermolecular_only=args.intermolecular,
+            use_charges=args.charges,
         )
