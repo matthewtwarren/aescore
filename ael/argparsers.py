@@ -208,3 +208,79 @@ def predictparser():
     args = parser.parse_args()
 
     return args
+
+
+def finetuneparser():
+    """
+    Command line arguments parser.
+    
+    Returns
+    -------
+    argarse.Namespace
+        Parsed arguments
+    """
+    parser = ap.ArgumentParser(description="Fine tune affinity prediction model.")
+
+    parser.add_argument("experiment", type=str, help="MLFlow experiment")
+
+    parser.add_argument("models", type=str, nargs="+", help="Models")
+
+    parser.add_argument("trainfile", type=str, help="Training set file")
+    
+    parser.add_argument("validfile", type=str, default=None, help="Validation set file")
+
+    parser.add_argument(
+        "-t", "--testfile", type=str, default=None, help="Test set file"
+    )
+
+    parser.add_argument("-av", "--aev", type=str, default="aevc.pth", help="Model")
+
+    parser.add_argument(
+        "-am", "--amap", type=str, default="amap.json", help="Atomic mapping to indices"
+    )
+    parser.add_argument(
+        "-cm", "--chemap", type=str, default=None, help="Chemical mapping"
+    )
+    parser.add_argument(
+        "-d", "--datapaths", nargs="+", type=str, default="", help="Path to data"
+    )
+    parser.add_argument(
+        "-r", "--distance", type=float, default=0.1, help="Residue selection distance"
+    )
+    parser.add_argument(
+        "--ligmask",
+        action="store_true",
+        help="Use contributions from ligand atoms only",
+    )
+    parser.add_argument("-b", "--batchsize", type=int, default=64, help="Batch size")
+
+    parser.add_argument("-e", "--epochs", type=int, default=100, help="Epochs")
+    
+    parser.add_argument("-lr", type=float, default=0.0005, help="Leanring rate")
+
+    parser.add_argument(
+        "-p", "--dropout", type=float, default=None, help="Dropout probability"
+    )
+    parser.add_argument("--scale", action="store_true", help="Scale labels")
+
+    parser.add_argument("-o", "--outpath", type=str, default="", help="Output path")
+
+    parser.add_argument("--device", type=str, default=None, help="Device")
+
+    parser.add_argument("--plot", action="store_true", help="Enable plotting")
+
+    parser.add_argument("--removeHs", action="store_true", help="Remove hydrogen atoms")
+
+    parser.add_argument("--seed", type=int, default=None, help="Random seed")
+
+    parser.add_argument(
+        "-vs",
+        "--vscreening",
+        default=None,
+        type=str,
+        help="Label path for virtual screening",
+    )
+
+    args = parser.parse_args()
+
+    return args
