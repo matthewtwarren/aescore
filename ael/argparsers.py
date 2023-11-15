@@ -233,7 +233,9 @@ def finetuneparser():
         "-t", "--testfile", type=str, default=None, help="Test set file"
     )
 
-    parser.add_argument("-av", "--aev", type=str, default="aevc.pth", help="Model")
+    parser.add_argument("-av", "--aev", type=str, default="aevc.pth", help="AEV computer")
+
+    parser.add_argument("-f", "--freeze", type=int, nargs="+", default=[0, 1], help="Layers to freeze (zero indexed)")
 
     parser.add_argument(
         "-am", "--amap", type=str, default="amap.json", help="Atomic mapping to indices"

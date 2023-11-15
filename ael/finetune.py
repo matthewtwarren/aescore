@@ -10,6 +10,44 @@ import json
 import matplotlib.pyplot as plt
 from ael import argparsers, loaders, models, utils, train, predict, plot
 
+
+def freeze_layer_params(model: models.AffinityModel, freeze_layers: list):
+    """Freeze the weights and biases of specified trainable layers.
+
+    Parameters
+    ----------
+    model : models.AffinityModel
+        Model to be finetuned.
+    freeze : list
+        List of indices of trainable layers whose parameters should be frozen. Indexing starts at 0.
+
+    """
+    trainable_layers = []
+    
+    for m in model:
+        atomicmodel = model[m]
+        for i, layer in enumerate(atomicmodel.layers):
+            if any(param.requires_grad for param in layer.parameters()):
+                trainable_layers.append((i, layer))
+
+    if len(freeze_layers) > len(trainable_layers):
+        raise ValueError(f"Cannot freeze {len(freeze_layers)} layers, only {len(trainable_layers)} are trainable")
+    
+    elif len(freeze_layers) == len(trainable_layers):
+        raise ValueError("Cannot freeze all layers, at least one must be trainable")
+    
+    elif max(freeze_layers) >= len(trainable_layers):
+        raise ValueError(f"Cannot freeze layer {max(freeze_layers)}, only {len(trainable_layers)} are trainable")
+
+    layer_indices_to_freeze = [trainable_layers[i][0] for i in freeze_layers if i < len(trainable_layers)]
+
+    for i, layer in trainable_layers:
+        if i in layer_indices_to_freeze:
+            for param in layer.parameters():
+                param.requires_grad = False
+    
+    return model
+
 if __name__ == "__main__":
     args = argparsers.finetuneparser()
 
@@ -156,21 +194,13 @@ if __name__ == "__main__":
 
         models = [
             utils.loadmodel(m, eval=False) for m in args.models
-        ]  # args.models will be the path(s) of the model(s) to be finetuned
+        ] 
         optimizers_list = []
 
-        # TODO: implement finetuning
         for idx, model in enumerate(models):
             optimizers_list.append(torch.optim.Adam(model.parameters(), lr=args.lr))
             mse = nn.MSELoss()
-
-            # Fix the weights of all layers but last
-            for m in model:
-                atomicmodel = model[m]
-                for i, layer in enumerate(atomicmodel.layers):
-                    if i < len(atomicmodel.layers) - 1:
-                        for param in layer.parameters():
-                            param.requires_grad = False
+            model = freeze_layer_params(model, freeze_layers=args.freeze)
 
             train_losses, valid_losses = train.train(
                 model,
