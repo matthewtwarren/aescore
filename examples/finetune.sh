@@ -8,6 +8,7 @@ python -m ael.finetune \
     ./tests/testdata/systems.dat \
     -t ./tests/testdata/systems.dat \
     -d ./tests/testdata \
+    -f 0 1 2 \
     -av out/aevc.pth \
     -am out/amap.json \
     -cm out/cmap.json \
