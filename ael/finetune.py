@@ -200,7 +200,9 @@ if __name__ == "__main__":
         for idx, model in enumerate(models):
             optimizers_list.append(torch.optim.Adam(model.parameters(), lr=args.lr))
             mse = nn.MSELoss()
-            model = freeze_layer_params(model, freeze_layers=args.freeze)
+            
+            if args.freeze is not None:
+                model = freeze_layer_params(model, freeze_layers=args.freeze)
 
             train_losses, valid_losses = train.train(
                 model,
