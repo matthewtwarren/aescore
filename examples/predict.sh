@@ -1,12 +1,10 @@
 #!/bin/bash
 
-mkdir -p out outl
-
 python -m ael.predict \
     Predict \
-    ../tests/testdata/systems.dat \
+    ./tests/testdata/systems.dat \
     out/best_0.pth out/best_1.pth out/best_2.pth \
-    -d ../tests/testdata \
+    -d ./tests/testdata \
     -e out/aevc.pth \
     -am out/amap.json \
     -cm out/cmap.json \
@@ -18,9 +16,9 @@ python -m ael.predict \
 
 python -m ael.predict \
     Predict \
-    ../tests/testdata/systems.dat \
+    ./tests/testdata/systems.dat \
     out/best_0.pth out/best_1.pth out/best_2.pth \
-    -d ../tests/testdata \
+    -d ./tests/testdata \
     -e out/aevc.pth \
     -am out/amap.json \
     -cm out/cmap.json \
