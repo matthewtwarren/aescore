@@ -4,6 +4,7 @@ from typing import List, Optional, Tuple, Union
 import mlflow
 import numpy as np
 import torch
+import torch.nn as nn
 import tqdm
 
 from ael import utils
@@ -174,6 +175,44 @@ def train(
             mlflow.log_param(f"best_epoch_{idx}", best_epoch)
 
     return train_losses, valid_losses
+
+
+class pearson_loss(nn.Module):
+
+    def __init__(self):
+        super(pearson_loss, self).__init__()
+
+    def forward(self, y_pred, y_true):
+        """
+        Pearson correlation loss.
+
+        Parameters
+        ----------
+        y_pred: torch.Tensor
+            Predicted values
+        y_true: torch.Tensor
+            True values
+
+        Returns
+        -------
+        torch.Tensor
+            Pearson correlation loss
+        """
+        y_pred_mean = torch.mean(y_pred)
+        y_true_mean = torch.mean(y_true)
+
+        y_pred_centered = y_pred - y_pred_mean
+        y_true_centered = y_true - y_true_mean
+
+        num = torch.sum(y_pred_centered * y_true_centered)
+        den = torch.sqrt(
+            torch.sum(y_pred_centered ** 2) * torch.sum(y_true_centered ** 2)
+        )
+
+        pearson_corr = num / den
+        pearson_loss = 1 - pearson_corr
+
+        return pearson_loss
 
 
 if __name__ == "__main__":
@@ -390,13 +429,13 @@ if __name__ == "__main__":
             optimizers_list.append(optim.Adam(models_list[-1].parameters(), lr=args.lr))
 
             # Define loss
-            mse = nn.MSELoss()
+            pearson = pearson_loss()
 
             # Train model
             train_losses, valid_losses = train(
                 models_list[-1],
                 optimizers_list[-1],
-                mse,
+                pearson,
                 AEVC,
                 trainloader,
                 validloader,
