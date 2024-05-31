@@ -1,0 +1,28 @@
+name: aescore
+
+channels:
+  - conda-forge
+
+dependencies:
+  - python
+  - pip
+  - torchani
+  - numpy
+  - scipy
+  - scikit-learn>=1.0
+  - qcelemental
+  - openbabel
+  - MDAnalysis
+  - matplotlib
+  - seaborn
+  - mlflow
+  - lark-parser
+  - cython
+  - black
+  - flake8
+  - mypy
+  - isort
+  - pytest
+  - pytest-xdist
+  - pytest-cov
+  - codecov

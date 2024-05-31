@@ -1,0 +1,37 @@
+name: ael-test
+channels:
+  - pytorch
+  - conda-forge
+dependencies:
+  - python
+  - pip
+
+  - numpy
+  - scipy
+  - scikit-learn>=1.0
+
+  - qcelemental
+  - openbabel
+  - MDAnalysis
+
+  - matplotlib
+  - seaborn
+
+  - mlflow
+
+  - pytorch
+  - torchvision
+  - torchani
+
+  - lark-parser
+  - cython
+
+  - black
+  - flake8
+  - mypy
+  - isort
+
+  - pytest
+  - pytest-xdist
+  - pytest-cov
+  - codecov
